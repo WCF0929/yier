@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host - 作品集</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .work-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .work-item {
+            margin-bottom: 20px;
+            width: 33.33%; /* 修改这一行 */
+            padding: 0 15px; /* 给每个作品项添加一些间距 */
+        }
+        .social-icon-wrapper {
+            margin-bottom: 30px; /* 增加图标之间的间距 */
+        }
+        .social-icon {
+            width: 50px; /* 增加图标大小 */
+            height: 50px;
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Host</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="index.html">首页</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="works.html">作品集</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5 pt-5">
+        <div class="row">
+            <div class="col-md-3">
+                <button id="add-work-btn" class="btn btn-primary mb-3">添加作品</button>
+                <input type="file" id="work-image" accept="image/*" multiple style="display: none;">
+                <div class="mt-3 social-icons">
+                    <div class="social-icon-wrapper">
+                        <a href="https://www.xiaohongshu.com/user/profile/5fe2e2c4000000000101eaed" target="_blank"><img src="https://www.xiaohongshu.com/favicon.ico" alt="小红书" class="social-icon"></a>
+                        <span>小红书</span>
+                    </div>
+                    <div class="social-icon-wrapper">
+                        <a href="https://v.douyin.com/ikadJkVc/" target="_blank"><img src="https://lf1-cdn-tos.bytegoofy.com/goofy/ies/douyin_web/public/favicon.ico" alt="抖音" class="social-icon"></a>
+                        <span>抖音</span>
+                    </div>
+                    <div class="social-icon-wrapper">
+                        <a href="https://space.bilibili.com/1672608717?spm_id_from=333.1007.0.0" target="_blank"><img src="https://www.bilibili.com/favicon.ico" alt="BILIBILI" class="social-icon"></a>
+                        <span>哔哩哔哩</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h1 class="mb-4">作品集</h1>
+                <div id="works-container" class="row">
+                    <!-- 作品将在这里动态加载 -->
+                </div>
+                <nav aria-label="作品集分页">
+                    <ul class="pagination justify-content-center" id="pagination">
+                        <!-- 分页按钮将在这里动态生成 -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const worksContainer = document.getElementById('works-container');
+            const paginationContainer = document.getElementById('pagination');
+            const addWorkBtn = document.getElementById('add-work-btn');
+            const fileInput = document.getElementById('work-image');
+            let works = [];
+            const worksPerPage = 18;
+            let currentPage = 1;
+            let db;
+
+            // 打开IndexedDB数据库
+            const dbName = 'WorksDatabase';
+            const dbVersion = 1;
+            const request = indexedDB.open(dbName, dbVersion);
+
+            request.onerror = function(event) {
+                console.error("IndexedDB error:", event.target.error);
+            };
+
+            request.onsuccess = function(event) {
+                db = event.target.result;
+                loadWorks();
+            };
+
+            request.onupgradeneeded = function(event) {
+                db = event.target.result;
+                const objectStore = db.createObjectStore("works", { keyPath: "id", autoIncrement: true });
+                objectStore.createIndex("timestamp", "timestamp", { unique: false });
+            };
+
+            function loadWorks() {
+                const transaction = db.transaction(["works"], "readonly");
+                const objectStore = transaction.objectStore("works");
+                const index = objectStore.index("timestamp");
+
+                const request = index.openCursor(null, "prev");
+                works = [];
+
+                request.onsuccess = function(event) {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        works.push(cursor.value);
+                        cursor.continue();
+                    } else {
+                        renderWorks();
+                        renderPagination();
+                    }
+                };
+            }
+
+            function renderWorks() {
+                worksContainer.innerHTML = '';
+                
+                if (works.length === 0) {
+                    worksContainer.innerHTML = '<p>还没有添加作品。</p>';
+                    return;
+                }
+
+                const startIndex = (currentPage - 1) * worksPerPage;
+                const endIndex = startIndex + worksPerPage;
+                const pageWorks = works.slice(startIndex, endIndex);
+
+                pageWorks.forEach((work) => {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4 col-sm-6 work-item';
+                    
+                    col.innerHTML = `
+                        <img src="${work.image}" class="img-fluid" alt="${work.title}">
+                        <h3>${work.title}</h3>
+                        <button class="btn btn-primary btn-sm view-image" data-image="${work.image}">查看大图</button>
+                    `;
+
+                    worksContainer.appendChild(col);
+                });
+
+                // 为所有 "查看大图" 按钮添加点击事件
+                document.querySelectorAll('.view-image').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const imageSrc = this.getAttribute('data-image');
+                        showLargeImage(imageSrc);
+                    });
+                });
+            }
+
+            function renderPagination() {
+                const pageCount = Math.ceil(works.length / worksPerPage);
+                paginationContainer.innerHTML = '';
+
+                for (let i = 1; i <= pageCount; i++) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+                    paginationContainer.appendChild(li);
+                }
+
+                paginationContainer.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'A') {
+                        e.preventDefault();
+                        currentPage = parseInt(e.target.getAttribute('data-page'));
+                        renderWorks();
+                        renderPagination();
+                    }
+                });
+            }
+
+            function showLargeImage(imageSrc) {
+                const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+                document.getElementById('modalImage').src = imageSrc;
+                modal.show();
+            }
+
+            // 重新启用添加作品功能
+            addWorkBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    Array.from(files).forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const newWork = {
+                                image: e.target.result,
+                                title: file.name,
+                                description: '新添加的作品',
+                                timestamp: Date.now()
+                            };
+                            
+                            const transaction = db.transaction(["works"], "readwrite");
+                            const objectStore = transaction.objectStore("works");
+                            const request = objectStore.add(newWork);
+
+                            request.onsuccess = function(event) {
+                                loadWorks(); // 重新加载作品列表
+                            };
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    fileInput.value = '';
+                }
+            });
+
+            // 初始加载作品在IndexedDB打开成功后自动调用
+        });
+    </script>
+
+    <!-- 添加一个模态框用于图片浏览 -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">图片浏览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <img id="modalImage" src="" class="img-fluid" alt="作品图片">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

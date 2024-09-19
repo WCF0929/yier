@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "image": "images/work1.jpg",
+    "title": "之前的作品1",
+    "description": "描述1",
+    "timestamp": 1625097600000
+  },
+  {
+    "id": 2,
+    "image": "images/work2.jpg",
+    "title": "之前的作品2",
+    "description": "描述2",
+    "timestamp": 1625011200000
+  }
+  // ... 添加更多之前的作品
+]
